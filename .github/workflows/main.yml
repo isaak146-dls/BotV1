@@ -27,7 +27,7 @@ jobs:
 
     - name: Correr el Bot
       run: |
-        python monitor.py
+       bot_ig_gh.py
 
     - name: Guardar cambios (JSON)
       run: |
