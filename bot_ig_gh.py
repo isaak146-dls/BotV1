@@ -6,7 +6,7 @@ import random
 import time
 
 # --- CONFIGURACIÓN ---
-LISTA_USUARIOS = ["m0ritaav", "fresaskoncremq", "yazminsitq", "exorcismxq", "__isaakm__"] 
+LISTA_USUARIOS = ["m0ritaav", "fresaskoncremq", "yazminsitq", "exorcismxq", "jerezanotravis"] 
 WEBHOOK_URL = "https://discord.com/api/webhooks/1446185382793183416/hiIK0y8-YEqVIXeAUV1jxRagEwFb_jBIqd1wfUl_ZguoYtKg51wTCZyI5I0oCNC7dxtF" # <--- PON TU URL DISCORD
 
 def guardar_base_datos(base_datos):
@@ -64,4 +64,5 @@ for usuario in LISTA_USUARIOS:
         print(f"Error con {usuario}: {e}")
 
 guardar_base_datos(base_datos)
+
 print("--- Fin de la ejecución ---")
