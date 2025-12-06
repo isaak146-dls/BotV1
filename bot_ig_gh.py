@@ -8,7 +8,7 @@ from datetime import datetime
 
 # --- CONFIGURACIÓN ---
 LISTA_USUARIOS = ["m0ritaav", "fresaskoncremq", "yazminsitq", "exorcismxq", "jerezanotravis"] 
-WEBHOOK_URL = "https://discord.com/api/webhooks/TU_WEBHOOK_AQUI" # <--- ¡RECUERDA PONER TU URL!
+WEBHOOK_URL = "https://discord.com/api/webhooks/1446185382793183416/hiIK0y8-YEqVIXeAUV1jxRagEwFb_jBIqd1wfUl_ZguoYtKg51wTCZyI5I0oCNC7dxtF" # <--- ¡RECUERDA PONER TU URL!
 
 def guardar_base_datos(base_datos):
     with open("historial_multi.json", "w") as f:
@@ -90,3 +90,4 @@ for usuario in LISTA_USUARIOS:
 guardar_base_datos(base_datos)
 
 print("--- Fin de la ejecución ---")
+
