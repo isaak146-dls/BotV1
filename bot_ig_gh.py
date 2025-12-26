@@ -1,10 +1,10 @@
-import requests
-from bs4 import BeautifulSoup
+import instaloader
 import json
 import os
-import time
+import requests
 import random
-import hashlib # <--- Necesario para encriptar
+import time
+import hashlib # <--- Importante
 from datetime import datetime, timedelta
 
 # --- CONFIGURACIÓN SEGURA ---
@@ -16,35 +16,24 @@ if usuarios_env:
 else:
     LISTA_USUARIOS = []
 
-# Configuración Pixwox
-BASE_URL = "https://www.pixwox.com/profile/{}/"
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Referer": "https://www.google.com/"
-}
-
-DB_FILE = "estado_privacidad.json"
-
 def generar_hash(texto):
-    """Convierte 'usuario' en '5d4140...' para ocultarlo en el JSON"""
+    """Encripta el nombre del usuario para el JSON"""
     return hashlib.md5(texto.encode()).hexdigest()
 
-def cargar_bd():
-    if not os.path.exists(DB_FILE):
-        return {}
-    with open(DB_FILE, "r") as f:
-        return json.load(f)
+def guardar_base_datos(base_datos):
+    with open("historial_multi.json", "w") as f:
+        json.dump(base_datos, f)
 
-def guardar_bd(db):
-    with open(DB_FILE, "w") as f:
-        json.dump(db, f)
+def cargar_base_datos():
+    if not os.path.exists("historial_multi.json"):
+        return {}
+    with open("historial_multi.json", "r") as f:
+        return json.load(f)
 
 def enviar_discord(mensaje):
     if not WEBHOOK_URL: return
     if len(mensaje) > 1900: mensaje = mensaje[:1900] + "... (cortado)"
-    data = {"username": "Monitor de Candados", "content": mensaje}
+    data = {"username": "IG Monitor (Seguidores)", "content": mensaje}
     try: requests.post(WEBHOOK_URL, json=data)
     except: pass
 
@@ -53,67 +42,63 @@ def obtener_hora_mexico():
     mexico_time = utc_now - timedelta(hours=6)
     return mexico_time.strftime("%I:%M %p")
 
-def chequear_estado(usuario):
-    try:
-        url = BASE_URL.format(usuario)
-        r = requests.get(url, headers=HEADERS, timeout=20)
-        if r.status_code == 404: return "no_existe"
-        soup = BeautifulSoup(r.text, 'html.parser')
-        texto = soup.get_text().lower()
-
-        if "account is private" in texto or "private account" in texto: return "privada"
-        if "posts" in texto and "followers" in texto: return "publica"
-        return "error_lectura"
-    except: return "error_red"
-
-# --- EJECUCIÓN ---
-print("--- Iniciando Rastreo Encriptado ---")
-base_datos = cargar_bd()
+# --- INICIO ---
+print("--- Ejecución Iniciada (Modo Encriptado) ---")
+L = instaloader.Instaloader()
+base_datos = cargar_base_datos()
 hora_mx = obtener_hora_mexico()
 
-reporte_novedades = []
+reporte_cambios = []
 reporte_errores = []
 
 for usuario in LISTA_USUARIOS:
-    # 1. Encriptar nombre para buscar en la DB
+    # Encriptamos el nombre para la DB
     usuario_hash = generar_hash(usuario)
     
-    # 2. Ocultar en logs
-    print(f"::add-mask::{usuario}")
-    time.sleep(random.randint(5, 10))
+    # Ocultamos en logs
+    print(f"::add-mask::{usuario}") 
+    time.sleep(random.randint(5, 10)) 
     
-    estado_actual = chequear_estado(usuario)
+    try:
+        profile = instaloader.Profile.from_username(L.context, usuario)
+        nuevos = {"seguidores": profile.followers, "seguidos": profile.followees}
+        
+        # Usamos usuario_hash como clave en el JSON
+        if usuario_hash not in base_datos:
+            base_datos[usuario_hash] = nuevos
+            reporte_cambios.append(f"🆕 **{usuario}**: Agregado a DB (Seguidores: {nuevos['seguidores']})")
+        else:
+            viejos = base_datos[usuario_hash]
+            cambios_txt = ""
+            
+            diff_followers = nuevos['seguidores'] - viejos['seguidores']
+            if diff_followers != 0:
+                cambios_txt += f"Seguidores: {viejos['seguidores']} ➡ {nuevos['seguidores']} ({diff_followers:+}) "
+                
+            diff_followees = nuevos['seguidos'] - viejos['seguidos']
+            if diff_followees != 0:
+                cambios_txt += f"Seguidos: {viejos['seguidos']} ➡ {nuevos['seguidos']} ({diff_followees:+})"
+            
+            if cambios_txt:
+                reporte_cambios.append(f"🚨 **{usuario}**: {cambios_txt}")
+                base_datos[usuario_hash] = nuevos
+                
+    except Exception as e:
+        error_msg = str(e).split('\n')[0]
+        reporte_errores.append(f"⚠️ **{usuario}**: {error_msg}")
 
-    if "error" in estado_actual or "no_existe" in estado_actual:
-        reporte_errores.append(f"⚠️ **{usuario}**: {estado_actual}")
-        continue
+guardar_base_datos(base_datos)
 
-    # 3. Usar el HASH para guardar/leer en la base de datos
-    if usuario_hash not in base_datos:
-        base_datos[usuario_hash] = estado_actual
-        icono = "🔒" if estado_actual == "privada" else "🔓"
-        reporte_novedades.append(f"🆕 **{usuario}**: Agregado. Estado: {icono} {estado_actual.upper()}")
-    
-    else:
-        estado_anterior = base_datos[usuario_hash]
-        if estado_actual != estado_anterior:
-            if estado_actual == "publica":
-                reporte_novedades.append(f"🚨🔓 **¡{usuario} AHORA ES PÚBLICA!**\nAntes: {estado_anterior} ➡ Ahora: PÚBLICA\n🔗 [Ver Perfil](https://instagram.com/{usuario})")
-            else:
-                reporte_novedades.append(f"🔒 **{usuario} puso el candado.** (Ahora es PRIVADA)")
-            base_datos[usuario_hash] = estado_actual
-
-guardar_bd(base_datos)
-
+# --- REPORTE FINAL ---
 mensaje_final = ""
-if reporte_novedades:
-    mensaje_final += "**📢 NOVEDADES DE PRIVACIDAD:**\n" + "\n".join(reporte_novedades) + "\n\n"
+if reporte_cambios:
+    mensaje_final += "**📊 CAMBIOS EN SEGUIDORES:**\n" + "\n".join(reporte_cambios) + "\n\n"
 if reporte_errores:
-    mensaje_final += "**🛠️ PROBLEMAS DETECTADOS:**\n" + "\n".join(reporte_errores) + "\n\n"
+    mensaje_final += "**🛠️ ERRORES:**\n" + "\n".join(reporte_errores) + "\n\n"
 
 if mensaje_final:
-    enviar_discord(f"🕵️ **Reporte de Candados** ({hora_mx})\n\n" + mensaje_final)
+    enviar_discord(f"📢 **Reporte de Seguidores** ({hora_mx})\n\n" + mensaje_final)
 else:
-    enviar_discord(f"✅ **Chequeo Completo ({hora_mx}):** Sin cambios en las {len(LISTA_USUARIOS)} cuentas.")
+    enviar_discord(f"✅ **Seguidores OK ({hora_mx}):** Sin cambios en las {len(LISTA_USUARIOS)} cuentas.")
 
 print("--- Fin ---")
