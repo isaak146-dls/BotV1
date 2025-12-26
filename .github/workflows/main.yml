@@ -1,37 +1,48 @@
-name: Bot Instagram Monitor
+name: Monitor de Seguidores (Instaloader)
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    # Se ejecuta cada 30 minutos
+    - cron: "*/30 * * * *"
+  
+  # Permite ejecutarlo manualmente desde la pestaña "Actions"
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  run-bot:
+  run-followers:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Descargar código
-      uses: actions/checkout@v3
+      - name: Descargar repositorio
+        uses: actions/checkout@v3
 
-    - name: Instalar Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
 
-    - name: Instalar librerías
-      run: |
-        pip install -r requirements.txt
+      - name: Instalar librerías
+        # Necesitamos instaloader para este bot
+        run: pip install instaloader requests
 
-    - name: Correr el Bot
-      run: |
-        python bot_ig_gh.py
+      - name: Ejecutar Bot de Seguidores
+        # AQUÍ SE CARGAN TUS SECRETOS PARA QUE EL SCRIPT LOS LEA
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          LISTA_OBJETIVOS: ${{ secrets.LISTA_OBJETIVOS }}
+        run: python bot_seguidores.py
 
-    - name: Guardar cambios
-      run: |
-        git config --global user.name 'Bot GitHub'
-        git config --global user.email 'bot@noreply.github.com'
-        git add historial_multi.json
-        git diff --quiet && git diff --staged --quiet || (git commit -m "Actualizar datos" && git push)
+      - name: Guardar base de datos
+        run: |
+          git config --global user.name "Bot Seguidores"
+          git config --global user.email "bot@github.com"
+          
+          # Agregamos el archivo JSON encriptado
+          git add historial_multi.json
+          
+          # Guardamos solo si hubo cambios
+          git commit -m "Actualizar historial de seguidores" || exit 0
+          git push
