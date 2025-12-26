@@ -33,8 +33,7 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           LISTA_OBJETIVOS: ${{ secrets.LISTA_OBJETIVOS }}
-        run: python bot_seguidores.py
-
+        run: python bot_ig_gh.py
       - name: Guardar base de datos
         run: |
           git config --global user.name "Bot Seguidores"
